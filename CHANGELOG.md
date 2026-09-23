@@ -134,10 +134,10 @@
   stored name, even though both tools' own descriptions promised a "partial
   match". Both handlers still send the cheap exact-match query first — the
   fast, correct answer whenever the caller already has the exact name — and
-  only fall back when that comes back empty, walking a broader, unfiltered
-  listing and matching `name` client-side as a case-insensitive substring
-  (`searchByNameWithFallback()`), capped at 5 pages of 1,000 records so a
-  name that matches nothing doesn't walk an entire multi-thousand-record
+  only fall back when that comes back empty, walking a broader listing without
+  the exact-name filter and matching `name` client-side as a case-insensitive
+  substring (`searchByNameWithFallback()`), capped at 5 pages of 1,000 records
+  so a name that matches nothing doesn't walk an entire multi-thousand-record
   account. The result carries a note whenever this fallback path was used
   (and whether it was capped). For `search_documents`, the existing
   folder-scope note (root-level vs folder-inclusive) is now derived from
