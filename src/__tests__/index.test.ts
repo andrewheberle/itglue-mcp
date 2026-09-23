@@ -3435,6 +3435,37 @@ describe("Document folder access (API-key-first, round-trip)", () => {
         expect(decodedUrl(1)).toContain("filter[document-folder-id]=42");
         expect(decodedUrl(1)).not.toContain("filter[name]");
       });
+
+      it("shows the ROOT-LEVEL scope note when the fallback itself degrades to unfiltered, even though the primary attempt was folder-inclusive", async () => {
+        const client = await connectClient({ apiKey: "test-api-key" });
+        mockFetch
+          // Primary query: folder-inclusive null-filter attempt succeeds, but empty.
+          .mockResolvedValueOnce(createMockResponse(createJsonApiResponse([])))
+          // Fallback page 1 re-negotiates independently and degrades all the
+          // way down to the legacy root-only listing.
+          .mockResolvedValueOnce(createErrorResponse(400, "bad filter"))
+          .mockResolvedValueOnce(createErrorResponse(422, "unprocessable"))
+          .mockResolvedValueOnce(
+            createMockResponse(
+              createJsonApiResponse([
+                { id: "1", type: "documents", attributes: { name: "Change Log" } },
+              ])
+            )
+          );
+
+        const result = await client.callTool({
+          name: "search_documents",
+          arguments: { organization_id: 123, name: "change" },
+        });
+
+        expect(mockFetch).toHaveBeenCalledTimes(4);
+        const text = firstText(result);
+        // The response reflects the fallback's actual (root-only) scope, not
+        // the primary attempt's folder-inclusive one.
+        expect(text).toContain("ROOT-LEVEL");
+        expect(text).not.toContain("includes documents inside folders");
+        expect(text).toContain("Change Log");
+      });
     });
   });
 

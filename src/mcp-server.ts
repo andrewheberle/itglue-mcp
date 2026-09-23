@@ -2395,6 +2395,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           // substring (see searchByNameWithFallback).
           let nameNote: string | null = null;
           if (docName && result.data.length === 0) {
+            // Each fallback page re-negotiates the folder filter independently
+            // (see requestDocumentsWithFolderDefault) — capture every page's
+            // attempt so the scope note below describes what actually
+            // produced `result`, not the (now-discarded) primary attempt.
+            const fallbackAttempts: DocumentSearchAttempt[] = [];
             const fallback = await searchByNameWithFallback(
               (fallbackPage) =>
                 args?.document_folder_id
@@ -2410,12 +2415,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                       client,
                       args.organization_id as number | string,
                       { ...(args?.sort ? { sort: args.sort } : {}), page: fallbackPage }
-                    ).then((attempted) => attempted.result),
+                    ).then((attempted) => {
+                      fallbackAttempts.push(attempted.attempt);
+                      return attempted.result;
+                    }),
               docName,
               page
             );
             result = { data: fallback.data, meta: fallback.meta };
             nameNote = nameFallbackNote("documents", docName, fallback.capped);
+
+            if (!args?.document_folder_id) {
+              note = fallbackAttempts.includes("unfiltered")
+                ? rootLevelDocumentsNote({
+                    folderFiltered: false,
+                    haveJwt: Boolean(sessionJwt ?? credentials.jwt),
+                  })
+                : folderedDocumentsIncludedNote();
+            }
           }
 
           // Drop each document's full body — search_documents is a list tool,
