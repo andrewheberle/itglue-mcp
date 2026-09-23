@@ -827,10 +827,28 @@ const NAME_FALLBACK_PAGE_SIZE = 1000;
  */
 const NAME_FALLBACK_MAX_PAGES = 5;
 
+/**
+ * Result of a {@link searchByNameWithFallback} client-side substring search.
+ *
+ * `data` and `meta` describe the CALLER's requested page — not the
+ * underlying IT Glue fetch. Matches are accumulated across the fallback's own
+ * (up to NAME_FALLBACK_MAX_PAGES) requests, at NAME_FALLBACK_PAGE_SIZE each,
+ * before `data` is sliced down to the caller's `page.size`/`page.number` and
+ * `meta` (currentPage/nextPage/prevPage/totalPages/totalCount) is computed
+ * over that accumulated match set, exactly as if it had come back from IT
+ * Glue directly.
+ */
 export interface NameFallbackResult {
+  /** The caller's requested page of matches — already sliced, ready to return as-is. */
   data: unknown[];
+  /** Pagination over the accumulated matches (not over the underlying IT Glue pages fetched to find them). */
   meta: PaginationMeta;
-  /** True when the underlying listing hit NAME_FALLBACK_MAX_PAGES with more pages still available. */
+  /**
+   * True when the underlying listing hit NAME_FALLBACK_MAX_PAGES while a
+   * page still reported a `nextPage` — i.e. the search gave up before
+   * exhausting the resource, so `meta.totalCount` (and therefore `data`) may
+   * be missing matches that exist beyond the pages actually walked.
+   */
   capped: boolean;
 }
 
